@@ -4,13 +4,10 @@
  /*
   Суточный термостат версия 1.0
 */
-//#include <Wire.h> // i2c (для RTC)
-//#include <RealTimeClockDS1307.h> // RTC
 #include <SPI.h>
 #include <nRF24L01.h>
 #include <RF24.h> // https://github.com/maniacbug/RF24
 #include <iarduino_RTC.h>
-//#include <RTC.h>
 #include <OneWire.h> // 1wire для DS18B20
 #include <DallasTemperature.h> // DS18B20
 #include <EEPROM.h> // EE
@@ -36,7 +33,6 @@ DallasTemperature Tsensors(&OneWire);
 //Настройка дисплея
 LiquidCrystal lcd(8, 9, 4, 5, 6, 7);
 
-//TimeE Time1(55);
 
 // псевдограф символы
 byte customChar1[8] = {
