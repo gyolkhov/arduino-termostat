@@ -1,8 +1,5 @@
 
 
-#include <iarduino_RTC.h>
-
-
 
  /*
   Суточный термостат версия 1.0
@@ -12,7 +9,7 @@
 #include <SPI.h>
 #include <nRF24L01.h>
 #include <RF24.h> // https://github.com/maniacbug/RF24
-
+#include <iarduino_RTC.h>
 //#include <RTC.h>
 #include <OneWire.h> // 1wire для DS18B20
 #include <DallasTemperature.h> // DS18B20
