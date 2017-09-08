@@ -1,103 +1,39 @@
 
-
-
- /*
-  Суточный термостат версия 1.0
+/*
+  Суточный термостат версия 1.1
 */
 #include <SPI.h>
 #include <nRF24L01.h>
-#include <RF24.h> // https://github.com/maniacbug/RF24
+#include <RF24.h>
 #include <iarduino_RTC.h>
 #include <OneWire.h> // 1wire для DS18B20
 #include <DallasTemperature.h> // DS18B20
 #include <EEPROM.h> // EE
 #include <LiquidCrystal.h> // LCD 16*2
-#include <TimerThree.h> // прерывания по таймеру1
+#include <TimerThree.h> // прерывания по таймеру3
 #include "TermoPeriod.h" // температурный период  класс
 #include "CfgParam.h" //  классы для  настоечных параметров , например, температура теростата, гистерезис
 #include "Buttons.h" //определение кнопок и функции считывания значения кнопок
 #include "EEPROMAddresses.h" //определение адресов EEPROM
 #include "Misc.h" //различные мои вспомогательные структуры 
 #include "Termostat.h"
+#include "CustomChar.h" //здесь определены символы псевдогафики
+
 #define ONE_WIRE_BUS 22
 
-
 const  uint8_t pipes[][6] = {"1Node", "2Node"};
-
-//RTC  RTCtime; //RTC time;
 iarduino_RTC RTCtime(RTC_DS3231);
 OneWire OneWire(ONE_WIRE_BUS);
 DallasTemperature Tsensors(&OneWire);
+
 // LCD connection RS, E, D4, D5, D6, D7
 // R/W - to ground
 //Настройка дисплея
 LiquidCrystal lcd(8, 9, 4, 5, 6, 7);
 
-
-// псевдограф символы
-byte customChar1[8] = {
-  0b00100,
-  0b10101,
-  0b01110,
-  0b11111,
-  0b01110,
-  0b10101,
-  0b00100,
-  0b00000
-}; // звезда
-
-byte customChar2[8] = {
-  0x06, 0x09, 0x09, 0x06, 0x00, 0x00, 0x00, 0x00
-}; // значок градуса
-
-byte customChar3[8] = {
-  0b10001,
-  0b10101,
-  0b01110,
-  0b00100,
-  0b00100,
-  0b00100,
-  0b01110,
-  0b00000
-}; //антенна
-
-byte customChar4[8] = {
-  0b00000,
-  0b00000,
-  0b00010,
-  0b00010,
-  0b00110,
-  0b01110,
-  0b01110,
-  0b00000
-};//уровень сигнала
-
-byte customChar5[8] = {
-  0b00000,
-  0b00000,
-  0b00000,
-  0b00000,
-  0b00000,
-  0b00000,
-  0b10101,
-  0b00000
-}; // Нулевой уроветь сигнала
-
-byte customChar6[8] = {
-  0b00000,
-  0b00000,
-  0b01010,
-  0b00000,
-  0b00000,
-  0b00000,
-  0b00000,
-  0b00000
-};
 RF24 radio(48, 53); // CE, CSN
 
 Termostat TS; // Главная переменная термостата
-
-unsigned int TstatTimer = 20; //таймер паузы между включениями/выключениями, начальная установка 20 сек для устаканивания системы после сброса
 volatile boolean blink500ms = false; // мигающий бит, инвертируется каждые 500мс
 volatile boolean plus1sec = false; // ежесекундно взводится
 volatile byte MenuTimeoutTimer; //Выход из меню бессохранения по неактивности
@@ -118,9 +54,6 @@ void setup() {
   //TS.temper=getTemperature();
 
   radiosetup();
-
-  // pinMode(Relay, OUTPUT);
-  // digitalWrite(Relay, HIGH);
   lcd.begin(16, 2);
   lcd.createChar(CHAR_SUN, customChar1); //солнце
   lcd.createChar(CHAR_DEGREE, customChar2);//градус
@@ -128,7 +61,7 @@ void setup() {
   lcd.createChar(CHAR_LEVEL, customChar4);//уровень сигнала
   lcd.createChar(CHAR_LEVEL0, customChar5);//нулевой уровень сигнала
   lcd.createChar(CHAR_LEVEL01, customChar6);// второй нулевой уровень сигнала для эффекта бег огни
-  
+
   Timer3.initialize(500000); // Timer0 interrupt - set a timer of length 500000 microseconds
   Timer3.attachInterrupt( timerIsr ); // attach the service routine here
   if (EEPROM.read(_MAGIC_WORD_ADDR) != 112) { // если первая запись EEPROM - записать начальные значения в EE
@@ -151,7 +84,7 @@ void setup() {
 ///////////////////////////////////////////////////////////////////////////////////////
 ///===== MAIN CYCLE ================================================================///
 ///////////////////////////////////////////////////////////////////////////////////////
-void loop() 
+void loop()
 {
   char menuitem = 1;
   boolean menuexit = false;
@@ -168,9 +101,9 @@ void loop()
     printSplash(); // Заставка
     if (EveryMinute) //каждую минуту  проверяем температурные условия
     {
-       EveryMinute=false;
-       //Тут полезная работа термостата
-       usefulWork();
+      EveryMinute = false;
+      //Тут полезная работа термостата
+      usefulWork();
     }
   } else
 
@@ -208,7 +141,7 @@ void loop()
               lcd.print(F("2.TEMPER MAN SET"));
               break;
             case 3:
-              
+
               lcd.print(F("3.PERIODS       "));
               break;
             case 4:
@@ -239,7 +172,7 @@ void loop()
             case 12:
               lcd.print(F("12.RELAY        "));
               break;
-            
+
           }
         }
         while (key != btnSELECT && key != btnLEFT && MenuTimeoutTimer > 0);
@@ -285,34 +218,16 @@ void loop()
             lcd.clear();
             lcd.setCursor(0, 0); //инфо на LCD
             lcd.print(F("SET CLOCK TIME"));
-            /*
-                      //      RTC.readClock();
-                      //     Hours=RTC.getHours();
-                      //    Minutes=RTC.getMinutes();
-                      SetYesNo = false;
-                      PrintYesNo = true;
-                      SetTime(0, 1); // в позиции 0,1 - запрос ввода времени
-                      if (MenuTimeoutTimer != 0) {
-                        if (SetYesNo)
-                        {
-
-                          //         RTC.setHours(Hours);
-                          //         RTC.setMinutes(Minutes);
-                          //         RTC.setSeconds(0);
-                          //        RTC.setClock();
-                        }
-                      }
-            */
-             setClockTime();
+            setClockTime();
             break; // case 4 out
-            
-           case 5: // Установка даты
+
+          case 5: // Установка даты
             lcd.clear();
             lcd.setCursor(0, 0); //инфо на LCD
             lcd.print(F("SET CLOCK DATE"));
             setClockDate();
             break;
-           
+
           // ====== пункт 6 - установка гистерезиса
           case 6:
             lcd.clear();
@@ -353,7 +268,7 @@ void loop()
 
           case 11:
             radioping();
-            lcd.setCursor(0,1);
+            lcd.setCursor(0, 1);
             lcd.print(F("10.PING         "));
             break; // case 11 out
           case 12:
@@ -365,14 +280,14 @@ void loop()
             lcd.print("Relay = ");
             TS.mrelay.setpos(8, 1);
             TS.mrelay.edit();
-            TS.relay_ctl(TS.mrelay.val()==0?ON:OFF);
+            TS.relay_ctl(TS.mrelay.val() == 0 ? ON : OFF);
             /*
-            if(rstat != TS.mrelay.val()){
+              if(rstat != TS.mrelay.val()){
               relay_ctrl(TS.mrelay.val()==0?true:false);
-            }
+              }
             */
             break;
- 
+
         }
         MenuTimeoutTimer = 10;
       } while ( menuexit == false && MenuTimeoutTimer > 0);
@@ -394,11 +309,9 @@ void timerIsr()
   if (blink500ms) {
     sec++;
     if (sec % 10 == 0) TempNeedUpdate = true; // каждые 10 сек взводится флаг необходимости обновления температуры
-    if (sec % 60 == 0) EveryMinute = true; // каждые 60 сек взводится флаг 
+    if (sec % 60 == 0) EveryMinute = true; // каждые 60 сек взводится флаг
     plus1sec = true; // ежесекундно взводится
-    if (TstatTimer != 0) {
-      TstatTimer --; // ежесекундный декремент этого таймера
-    }
+
     if (MenuTimeoutTimer != 0) {
       MenuTimeoutTimer --; // ежесекундный декремент этого таймера
     }
@@ -539,35 +452,35 @@ void printSplash()
     sprintf_P(buff, (const char *)F("%02d-%02d-%02d"), RTCtime.day, RTCtime.month, RTCtime.year);
     lcd.print(buff);
     lcd.print(" ");
-    if(TS.relay == ON) {
+    if (TS.relay == ON) {
       lcd.write(CHAR_SUN); // значок солнца}
     }
-    else{
+    else {
       lcd.print(" ");
     }
     lcd.print(" ");
-    if(TS.mode.val()==1) //в ручном режиме
+    if (TS.mode.val() == 1) //в ручном режиме
     {
       lcd.print("M ");
-    }else{
+    } else {
       if (TS.period == -1)
       {
         lcd.print("P-");
-      }else{
+      } else {
         lcd.print("P");
-        lcd.print(TS.period+1);
+        lcd.print(TS.period + 1);
       }
     }
     lcd.setCursor(14, 0);
     lcd.write(CHAR_ANTENNA);
-    if(TS.relay_ack){
-       lcd.write(CHAR_LEVEL); 
+    if (TS.relay_ack) {
+      lcd.write(CHAR_LEVEL);
     }
-    else{
-         
-        lcd.write(CHAR_LEVEL0); 
+    else {
+
+      lcd.write(CHAR_LEVEL0);
     }
-    
+
     sprintf_P(buff, (const char *)F("%02d:%02d:%02d t=%s"), RTCtime.Hours, RTCtime.minutes, RTCtime.seconds, strtemp);
     lcd.setCursor(0, 1);
     lcd.print(buff);
@@ -631,7 +544,7 @@ float avrgTemp(const float temp)//средняя температура за 6 �
 ///////////////////////////////////////////////////////////
 void radiosetup()
 {
-  
+
   radio.begin();
   delay(2);
   radio.setChannel(9); // канал (0-127)
@@ -679,7 +592,7 @@ void radioping()
     lcd.print(">");
     radio.stopListening();
     Radiodata ping;
-    ping.cmd=PINGCMD;   
+    ping.cmd = PINGCMD;
     ping.data  = millis();
     bool ok = radio.write( &ping, sizeof(ping) );
     if (!ok)
@@ -691,7 +604,7 @@ void radioping()
       radio.startListening();
       // Wait here until we get a response, or timeout (250ms)
       unsigned long started_waiting_at = millis();
- 
+
       bool timeout = false;
       while ( ! radio.available() && ! timeout )
         if (millis() - started_waiting_at > 200 )
@@ -707,34 +620,34 @@ void radioping()
         // Grab the response, compare, and send to debugging spew
         Radiodata got_ping;
         radio.read( &got_ping, sizeof(got_ping) );
-        // Spew it 
-        unsigned long curtime=millis();
-        if(got_ping.cmd == PINGANSWERCMD)
+        // Spew it
+        unsigned long curtime = millis();
+        if (got_ping.cmd == PINGANSWERCMD)
         {
-         counter++;
-          
-         Serial.print("Got response: ");
-         Serial.print(got_ping.data);
-         Serial.print(" round-trip delay: ");     
-         Serial.println(curtime - got_ping.data);
-        }else{
+          counter++;
+
+          Serial.print("Got response: ");
+          Serial.print(got_ping.data);
+          Serial.print(" round-trip delay: ");
+          Serial.println(curtime - got_ping.data);
+        } else {
           Serial.print("Unexpect recievd non ping answer code:");
           Serial.println(got_ping.cmd);
         }
-         
+
       }
       delay(30);
     }
   }
-  
 
- char strbuff[17] ;
- //dtostrf(counter/10*100, 2, 0, strbuff);
 
-  sprintf(strbuff,"%d/%d packet sent",counter,10);
- // Serial.println(psent);
- // dtostrf(_val, 2, 1, str_buf);
- 
+  char strbuff[17] ;
+  //dtostrf(counter/10*100, 2, 0, strbuff);
+
+  sprintf(strbuff, "%d/%d packet sent", counter, 10);
+  // Serial.println(psent);
+  // dtostrf(_val, 2, 1, str_buf);
+
   Serial.println(strbuff);
   lcd.setCursor(0, 1);
   lcd.print(strbuff);
@@ -744,42 +657,45 @@ void radioping()
 //////////////////////////////////
 void usefulWork()
 {
-   float tDst=22.0; //Температура назначения
- 
-   //Сначала определим в каком режиме мы находимся - ручном или автомат
-   if(TS.mode.val() == 0) // AUTO режим
-   {
-          RTCtime.gettime();
-          int i=TS.findTermoPeriod(RTCtime.Hours,RTCtime.minutes); // определим в какаом термопериоде мы наход
-          if(i<0){TS.relay_ctl(OFF); return;} //Выключаем реле если мы находимся вне всяких термопериодов       
-          tDst = TS.termoPeriod[i].temp(); //Заданная температура периода
-   }else //Ручной режим
-   {
-    // Если в ручном - определим граничную  температуру    
-         tDst= TS.tempMan.val();
-   }
-    states cmd;    //Команда для реле
-    switch (TS.relay) //Текущее состояние  реле 
-    {
-      case ON:
-          cmd=ON;
-          if(TS.temper>=tDst+TS.hyster.val())
-          {
-            cmd=OFF;
-          }
-          break;
-      case OFF:
-          cmd=OFF;
-          if(TS.temper<=tDst)
-          {
-            cmd=ON;
-          }
-      
-          break;
-           
-    }
+  float tDst = 22.0; //Температура назначения
 
-    TS.relay_ctl(cmd); //Посылаем комнду в реле
+  //Сначала определим в каком режиме мы находимся - ручном или автомат
+  if (TS.mode.val() == 0) // AUTO режим
+  {
+    RTCtime.gettime();
+    int i = TS.findTermoPeriod(RTCtime.Hours, RTCtime.minutes); // определим в какаом термопериоде мы наход
+    if (i < 0) {
+      TS.relay_ctl(OFF);  //Выключаем реле если мы находимся вне всяких термопериодов
+      return;
+    }
+    tDst = TS.termoPeriod[i].temp(); //Заданная температура периода
+  } else //Ручной режим
+  {
+    // Если в ручном - определим граничную  температуру
+    tDst = TS.tempMan.val();
+  }
+  states cmd;    //Команда для реле
+  switch (TS.relay) //Текущее состояние  реле
+  {
+    case ON:
+      cmd = ON;
+      if (TS.temper >= tDst + TS.hyster.val())
+      {
+        cmd = OFF;
+      }
+      break;
+    case OFF:
+      cmd = OFF;
+      if (TS.temper <= tDst)
+      {
+        cmd = ON;
+      }
+
+      break;
+
+  }
+
+  TS.relay_ctl(cmd); //Посылаем комнду в реле
 }
 
 
@@ -790,9 +706,9 @@ void setClockTime()
   lcd.clear();
   lcd.setCursor(0, 0); //инфо на LCD
   lcd.print(F("SET CLOCK TIME "));
-  tm.setpos(5,1);
-  if(tm.edit()==btnSELECT){
-     RTCtime.settime(0,tm.m(),tm.h());
+  tm.setpos(5, 1);
+  if (tm.edit() == btnSELECT) {
+    RTCtime.settime(0, tm.m(), tm.h());
   }
   return;
 }
@@ -804,9 +720,9 @@ void setClockDate()
   lcd.clear();
   lcd.setCursor(0, 0); //инфо на LCD
   lcd.print(F("SET CLOCK DATE"));
-  dt.setpos(3,1);
-  if(dt.edit()==btnSELECT){
-     RTCtime.settime(-1,-1,-1,dt.d(),dt.m(),dt.y());
+  dt.setpos(3, 1);
+  if (dt.edit() == btnSELECT) {
+    RTCtime.settime(-1, -1, -1, dt.d(), dt.m(), dt.y());
   }
   return;
 }

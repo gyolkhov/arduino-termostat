@@ -1,4 +1,4 @@
-#include "Buttons.h" 
+#include "Buttons.h"
 extern volatile byte MenuTimeoutTimer; //Глобальная переменная определенная в другом файле
 
 static int keymap(int k) {
@@ -13,9 +13,9 @@ static int keymap(int k) {
 }
 
 /////////////////////////////////////////////////////////////////////////////
-int read_buttons() // 
+int read_buttons() //
 {
-  static unsigned long pr_btn_time = 0; 
+  static unsigned long pr_btn_time = 0;
   int key, key2;
   unsigned long curtime = millis();
   do {
