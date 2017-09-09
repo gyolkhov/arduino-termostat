@@ -19,7 +19,8 @@
 #include "Termostat.h"
 #include "CustomChar.h" //здесь определены символы псевдогафики
 
-#define ONE_WIRE_BUS 22
+#define ONE_WIRE_BUS 22 
+#define MAX_MENU_ITEM 12 // Количество пунктов меню - вернее максимальный индекс пункта меню ( начинается с ноля)
 
 const  uint8_t pipes[][6] = {"1Node", "2Node"};
 iarduino_RTC RTCtime(RTC_DS3231);
@@ -119,11 +120,11 @@ void loop()
           {
             if (key == btnUP)  menuitem--;
             else if (key == btnDOWN)   menuitem++;
-            if ( menuitem > 12 ) {
+            if ( menuitem > MAX_MENU_ITEM ) {
               menuitem = 0;  // границы пунктов меню
             }
             if ( menuitem < 0 ) {
-              menuitem = 12;
+              menuitem = MAX_MENU_ITEM;
             }
           }
 
