@@ -115,8 +115,8 @@ int TermoPeriod::edit()
  
     } //switch end
 
-  } //do end
-  while ( mitem > 0 && mitem < 5 && MenuTimeoutTimer > 0);
+  } while ( mitem > 0 && mitem < 5 && MenuTimeoutTimer > 0); //end do while
+  
   if(MenuTimeoutTimer==0)
   {
      sync(); //синхронизируем с EEPROMом то есть отменяем все изменения в полях объекта

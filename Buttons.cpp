@@ -1,6 +1,6 @@
 #include "Buttons.h"
 extern volatile byte MenuTimeoutTimer; //Глобальная переменная определенная в другом файле
-
+extern uint8_t MenuTimeout ; //Глобальная переменная определенная в другом файле
 static int keymap(int k) {
   if (k < 50) return btnRIGHT;
   if (k < 195) return btnUP;
@@ -27,7 +27,7 @@ int read_buttons() //
 
   if ((key != btnNONE) && ((curtime - pr_btn_time) > 200)) {
     pr_btn_time = curtime;
-    MenuTimeoutTimer = 10;
+    MenuTimeoutTimer = MenuTimeout;
     return key;
   }
   return btnNONE;

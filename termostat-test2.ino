@@ -22,7 +22,9 @@
 #define ONE_WIRE_BUS 22 
 #define MAX_MENU_ITEM 12 // Количество пунктов меню - вернее максимальный индекс пункта меню ( начинается с ноля)
 
+uint8_t MenuTimeout=10; //АвтоВыход из меню после бездействия в секундах
 const  uint8_t pipes[][6] = {"1Node", "2Node"};
+
 iarduino_RTC RTCtime(RTC_DS3231);
 OneWire OneWire(ONE_WIRE_BUS);
 DallasTemperature Tsensors(&OneWire);
@@ -37,7 +39,7 @@ RF24 radio(48, 53); // CE, CSN
 Termostat TS; // Главная переменная термостата
 volatile boolean blink500ms = false; // мигающий бит, инвертируется каждые 500мс
 volatile boolean plus1sec = false; // ежесекундно взводится
-volatile byte MenuTimeoutTimer; //Выход из меню бессохранения по неактивности
+volatile byte MenuTimeoutTimer; //Выход из меню бессохранения по неактивности счетчик
 volatile boolean TempNeedUpdate = true; //флаг необходимости обновления показания температуры
 volatile boolean EveryMinute = true;
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -290,7 +292,7 @@ void loop()
             break;
 
         }
-        MenuTimeoutTimer = 10;
+        MenuTimeoutTimer = MenuTimeout; //
       } while ( menuexit == false && MenuTimeoutTimer > 0);
 
       lcd.clear();
